@@ -2,7 +2,42 @@ package br.com.crednex.admin;
 import android.app.*;import android.os.*;import android.widget.*;import android.view.*;import android.content.*;import org.json.*;import java.net.*;import java.io.*;
 public class MainActivity extends Activity {
  LinearLayout panel; EditText host,login,password; String base,token=""; boolean admin=true; int green=0xff087b38;
- public void onCreate(Bundle b){super.onCreate(b); screen(); host=field("Servidor de teste (http://IP:8765)",false);login=field(admin?"admin":"CPF sem pontuação",false);password=field("Senha",true);button("Entrar",()->{base=host.getText().toString().trim().replaceAll("/+$", ""); call("/login",obj("login",login.getText().toString(),"password",password.getText().toString()),r->{if(!r.optString("role").equals(admin?"admin":"client")){msg("Perfil incorreto");return;}token=r.optString("token");home();});});}
+ public void onCreate(Bundle b){super.onCreate(b); screen(); host=field("Servidor de teste (http://IP:8765)",false);login=field(admin?"admin":"CPF sem pontuação",false);password=field("Senha",true);
+if(android.os.Build.VERSION.SDK_INT>=26){
+login.setAutofillHints("username");
+password.setAutofillHints("password");
+host.setImportantForAutofill(2);
+login.setImportantForAutofill(1);
+password.setImportantForAutofill(1);
+}
+
+SharedPreferences prefs=getSharedPreferences("crednex_access",MODE_PRIVATE);
+host.setText(prefs.getString("host","http://127.0.0.1:8765"));
+login.setText(prefs.getString("login",""));
+CheckBox mostrar=new CheckBox(this);
+mostrar.setText("Mostrar senha");
+panel.addView(mostrar);
+mostrar.setOnCheckedChangeListener((v,checked)->{
+password.setInputType(checked?145:129);
+password.setSelection(password.length());
+});
+CheckBox lembrar=new CheckBox(this);
+lembrar.setText("Lembrar meu acesso");
+lembrar.setChecked(prefs.getBoolean("remember",false));
+panel.addView(lembrar);
+lembrar.setOnCheckedChangeListener((v,checked)->{
+if(!checked)prefs.edit().clear().apply();
+});
+button("Esqueci minha senha",()->msg("Procure o responsavel autorizado pelo servidor para recuperar seu acesso."));
+button("Entrar",()->{base=host.getText().toString().trim().replaceAll("/+$", ""); call("/login",obj("login",login.getText().toString(),"password",password.getText().toString()),r->{if(!r.optString("role").equals(admin?"admin":"client")){msg("Perfil incorreto");return;}
+token=r.optString("token","").trim();if(token.isEmpty()){msg("Servidor nao forneceu token");return;}
+if(lembrar.isChecked()){
+prefs.edit().putString("host",base)
+.putString("login",login.getText().toString())
+.putBoolean("remember",true).apply();
+}else{prefs.edit().clear().apply();}
+home();
+});});}
  void screen(){ScrollView s=new ScrollView(this);panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(32,40,32,32);panel.setBackgroundColor(0xfff0f7f1);s.addView(panel);setContentView(s);ImageView i=new ImageView(this);i.setImageResource(R.drawable.logo);panel.addView(i,new LinearLayout.LayoutParams(-1,150));label("credneX "+(admin?"ADMIN":"CLIENTES"));label("Ambiente de testes — não use dados reais");}
  void label(String t){TextView v=new TextView(this);v.setText(t);v.setTextSize(19);v.setTextColor(0xff06351e);v.setPadding(0,12,0,12);panel.addView(v);}
  EditText field(String h,boolean secret){EditText e=new EditText(this);e.setHint(h);e.setSingleLine(true);if(secret)e.setInputType(129);panel.addView(e);return e;}
@@ -10,6 +45,6 @@ public class MainActivity extends Activity {
  void msg(String t){new AlertDialog.Builder(this).setMessage(t).setPositiveButton("OK",null).show();}
  JSONObject obj(String... a){JSONObject o=new JSONObject();try{for(int i=0;i<a.length;i+=2)o.put(a[i],a[i+1]);}catch(Exception e){}return o;}
  interface Done{void run(JSONObject o);}
- void call(String path,JSONObject data,Done done){new Thread(()->{try{HttpURLConnection c=(HttpURLConnection)new URL(base+path).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(8000);c.setInstanceFollowRedirects(false);c.setRequestProperty("Authorization","Bearer "+token);if(data!=null){c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json");try(OutputStream out=c.getOutputStream()){out.write(data.toString().getBytes("UTF-8"));}}int status=c.getResponseCode();InputStream in=status<400?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[4096];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);in.close();JSONObject o=new JSONObject(out.toString("UTF-8"));c.disconnect();runOnUiThread(()->{if(status>=400)msg(o.optString("erro","Falha"));else done.run(o);});}catch(Exception e){runOnUiThread(()->msg("Falha de conexão. Confira o servidor."));}}).start();}
+ void call(String path,JSONObject data,Done done){new Thread(()->{try{HttpURLConnection c=(HttpURLConnection)new URL(base+path).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(8000);c.setInstanceFollowRedirects(false);if(!path.equals("/login") && token!=null && !token.isEmpty()){c.setRequestProperty("Authorization","Bearer "+token.trim());}if(data!=null){c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json");try(OutputStream out=c.getOutputStream()){out.write(data.toString().getBytes("UTF-8"));}}int status=c.getResponseCode();InputStream in=status<400?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[4096];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);in.close();JSONObject o=new JSONObject(out.toString("UTF-8"));c.disconnect();runOnUiThread(()->{if(status>=400)msg(o.optString("erro","Falha"));else done.run(o);});}catch(Exception e){runOnUiThread(()->msg("Falha de conexão. Confira o servidor."));}}).start();}
  void home(){screen();button("Meu perfil",()->call("/me",null,r->msg(r.optString("name"))));button("Chave Pix",()->call("/pix",null,r->{String key=r.optString("pix");new AlertDialog.Builder(this).setTitle("Chave Pix").setMessage(r.optString("beneficiary")+"\n"+key).setPositiveButton("Copiar",(x,y)->{((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Pix",key));}).setNegativeButton("Fechar",null).show();}));if(admin){button("Capital inicial",()->call("/admin/settings",null,r->msg(String.format(java.util.Locale.forLanguageTag("pt-BR"),"R$ %.2f",r.optLong("capital")/100.0))));button("Cadastrar cliente",()->{screen();EditText cpf=field("CPF",false),name=field("Nome",false),pw=field("Senha inicial (12+ caracteres)",true);button("Salvar",()->call("/admin/client",obj("cpf",cpf.getText().toString(),"name",name.getText().toString(),"password",pw.getText().toString()),r->{home();msg("Cliente cadastrado");}));button("Voltar",()->home());});button("Configurar Pix",()->{screen();EditText key=field("Chave Pix",false),name=field("Beneficiário",false);button("Salvar",()->call("/admin/pix",obj("pix",key.getText().toString(),"beneficiary",name.getText().toString()),r->{home();msg("Chave atualizada");}));button("Voltar",()->home());});}button("Sair",()->call("/logout",obj(),r->{token="";recreate();}));}
 }
