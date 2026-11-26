@@ -38,13 +38,379 @@ prefs.edit().putString("host",base)
 }else{prefs.edit().clear().apply();}
 home();
 });});}
- void screen(){ScrollView s=new ScrollView(this);panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(32,40,32,32);panel.setBackgroundColor(0xfff0f7f1);s.addView(panel);setContentView(s);ImageView i=new ImageView(this);i.setImageResource(R.drawable.logo);panel.addView(i,new LinearLayout.LayoutParams(-1,150));label("credneX "+(admin?"false":"CLIENTES"));label("Ambiente de testes — não use dados reais");}
- void label(String t){TextView v=new TextView(this);v.setText(t);v.setTextSize(19);v.setTextColor(0xff06351e);v.setPadding(0,12,0,12);panel.addView(v);}
- EditText field(String h,boolean secret){EditText e=new EditText(this);e.setHint(h);e.setSingleLine(true);if(secret)e.setInputType(129);panel.addView(e);return e;}
- void button(String t,Runnable r){Button b=new Button(this);b.setText(t);b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(green));panel.addView(b);b.setOnClickListener(v->r.run());}
+ void screen(){ScrollView s=new ScrollView(this);panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(dp(18),dp(20),dp(18),dp(20));panel.setBackgroundColor(0xffffffff);s.addView(panel);setContentView(s);ImageView i=new ImageView(this);i.setImageResource(R.drawable.logo);panel.addView(i,new LinearLayout.LayoutParams(-1,150));label("credneX "+(admin?"ADMIN":"CLIENTES"));label("Ambiente de testes — não use dados reais");}
+
+ int dp(float n){
+  return (int)(n*getResources().getDisplayMetrics().density+0.5f);
+ }
+
+ android.graphics.drawable.GradientDrawable estilo(
+  int cor,int borda,int raio){
+
+  android.graphics.drawable.GradientDrawable d=
+   new android.graphics.drawable.GradientDrawable();
+
+  d.setColor(cor);
+  d.setCornerRadius(dp(raio));
+  d.setStroke(dp(1),borda);
+  return d;
+ }
+
+ void label(String t){
+  TextView v=new TextView(this);
+  v.setText(t);
+  v.setTextSize(17);
+  v.setTextColor(0xff103d2b);
+  v.setPadding(dp(4),dp(10),dp(4),dp(10));
+  panel.addView(v);
+ }
+
+ EditText field(String h,boolean secret){
+  EditText e=new EditText(this);
+  e.setHint(h);
+  e.setTextColor(0xff103d2b);
+  e.setHintTextColor(0xff68796e);
+  e.setTextSize(16);
+  e.setSingleLine(true);
+
+  if(secret)e.setInputType(129);
+
+  e.setPadding(dp(14),dp(12),dp(14),dp(12));
+
+  e.setBackground(estilo(
+   0xffffffff,0xffc5d5c9,12));
+
+  LinearLayout.LayoutParams lp=
+   new LinearLayout.LayoutParams(-1,-2);
+
+  lp.setMargins(0,dp(6),0,dp(6));
+  panel.addView(e,lp);
+
+  return e;
+ }
+
+ void button(String t,Runnable r){
+  Button b=new Button(this);
+
+  b.setText(t);
+  b.setAllCaps(false);
+  b.setTextColor(0xffffffff);
+  b.setTextSize(15);
+  b.setGravity(android.view.Gravity.CENTER);
+  b.setMinHeight(dp(52));
+  b.setPadding(dp(12),dp(10),dp(12),dp(10));
+
+  b.setBackgroundTintList(null);
+
+  b.setBackground(estilo(
+   0xff103d2b,0xffc4a24e,14));
+
+  LinearLayout.LayoutParams lp=
+   new LinearLayout.LayoutParams(-1,-2);
+
+  lp.setMargins(0,dp(5),0,dp(5));
+
+  panel.addView(b,lp);
+  b.setOnClickListener(v->r.run());
+ }
+
  void msg(String t){new AlertDialog.Builder(this).setMessage(t).setPositiveButton("OK",null).show();}
  JSONObject obj(String... a){JSONObject o=new JSONObject();try{for(int i=0;i<a.length;i+=2)o.put(a[i],a[i+1]);}catch(Exception e){}return o;}
  interface Done{void run(JSONObject o);}
  void call(String path,JSONObject data,Done done){new Thread(()->{try{HttpURLConnection c=(HttpURLConnection)new URL(base+path).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(8000);c.setInstanceFollowRedirects(false);if(!path.equals("/login") && token!=null && !token.isEmpty()){c.setRequestProperty("Authorization","Bearer "+token.trim());}if(data!=null){c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json");try(OutputStream out=c.getOutputStream()){out.write(data.toString().getBytes("UTF-8"));}}int status=c.getResponseCode();InputStream in=status<400?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[4096];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);in.close();JSONObject o=new JSONObject(out.toString("UTF-8"));c.disconnect();runOnUiThread(()->{if(status>=400)msg(o.optString("erro","Falha"));else done.run(o);});}catch(Exception e){runOnUiThread(()->msg("Falha de conexão. Confira o servidor."));}}).start();}
- void home(){screen();button("Meu perfil",()->call("/me",null,r->msg(r.optString("name"))));button("Chave Pix",()->call("/pix",null,r->{String key=r.optString("pix");new AlertDialog.Builder(this).setTitle("Chave Pix").setMessage(r.optString("beneficiary")+"\n"+key).setPositiveButton("Copiar",(x,y)->{((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Pix",key));}).setNegativeButton("Fechar",null).show();}));if(admin){button("Capital inicial",()->call("/admin/settings",null,r->msg(String.format(java.util.Locale.forLanguageTag("pt-BR"),"R$ %.2f",r.optLong("capital")/100.0))));button("Cadastrar cliente",()->{screen();EditText cpf=field("CPF",false),name=field("Nome",false),pw=field("Senha inicial (12+ caracteres)",true);button("Salvar",()->call("/admin/client",obj("cpf",cpf.getText().toString(),"name",name.getText().toString(),"password",pw.getText().toString()),r->{home();msg("Cliente cadastrado");}));button("Voltar",()->home());});button("Configurar Pix",()->{screen();EditText key=field("Chave Pix",false),name=field("Beneficiário",false);button("Salvar",()->call("/admin/pix",obj("pix",key.getText().toString(),"beneficiary",name.getText().toString()),r->{home();msg("Chave atualizada");}));button("Voltar",()->home());});}button("Sair",()->call("/logout",obj(),r->{token="";recreate();}));}
+
+ void consulta(String titulo,String rota){
+  call(rota,null,r->{
+   screen();
+   label(titulo);
+   mostrarDados(r);
+   button("Voltar",()->home());
+  });
+ }
+
+ String moeda(long valor){
+  return java.text.NumberFormat.getCurrencyInstance(
+   java.util.Locale.forLanguageTag("pt-BR")
+  ).format(valor/100.0);
+ }
+
+ void mostrarDados(JSONObject dados){
+  java.util.Iterator<String> chaves=dados.keys();
+  while(chaves.hasNext()){
+   String k=chaves.next();
+   Object v=dados.opt(k);
+
+   if(v instanceof org.json.JSONArray){
+    org.json.JSONArray a=(org.json.JSONArray)v;
+    if(a.length()==0)label("Nenhum registro encontrado");
+    for(int i=0;i<a.length();i++){
+     label("Registro "+(i+1));
+     JSONObject item=a.optJSONObject(i);
+     if(item!=null)mostrarDados(item);
+    }
+   }else{
+    String nome=k.replace("_"," ");
+    String texto=String.valueOf(v);
+
+    if(k.matches("capital|principal|total|amount|paid|balance|disponivel|entradas|saidas|recebido|emprestado|saldo_devedor|atrasado|inadimplencia|juros_contratados|despesas_pagas|despesas_pendentes|estimated_value")){
+     texto=moeda(dados.optLong(k));
+    }
+
+    label(nome.toUpperCase(java.util.Locale.ROOT)+": "+texto);
+   }
+  }
+ }
+
+
+ void centralPix(){
+  call("/pix/payment",null,r->{
+   screen();
+   label("CENTRAL DE PAGAMENTOS PIX");
+
+   label("Beneficiario: "+r.optString("beneficiary"));
+   label("Chave Pix: "+r.optString("pix"));
+
+   if(!r.optBoolean("configured")){
+    label("Chave Pix ainda nao configurada");
+   }
+
+   org.json.JSONArray parcelas=r.optJSONArray("installments");
+
+   if(parcelas==null || parcelas.length()==0){
+    label("Nenhuma parcela pendente");
+   }else{
+    for(int i=0;i<parcelas.length();i++){
+     JSONObject item=parcelas.optJSONObject(i);
+     if(item==null)continue;
+
+     int id=item.optInt("id");
+
+     label("Parcela: "+item.optInt("number"));
+     label("Vencimento: "+item.optString("due_date"));
+     label("Saldo: "+moeda(item.optLong("balance")));
+
+     button("Gerar Pix - Parcela "+id,
+      ()->exibirPix(id));
+    }
+   }
+
+   if(admin){
+    button("Configurar municipio",()->{
+     screen();
+     EditText cidade=field("Municipio do beneficiario",false);
+
+     button("Salvar",()->call("/admin/pix/city",
+      obj("city",cidade.getText().toString()),
+      x->{centralPix();msg("Municipio atualizado");}));
+
+     button("Voltar",()->centralPix());
+    });
+   }
+
+   button("Voltar",()->home());
+  });
+ }
+
+ void exibirPix(int id){
+  call("/pix/code/"+id,null,r->{
+   screen();
+   label("PAGAMENTO PIX");
+   label("Beneficiario: "+r.optString("beneficiary"));
+   label("Municipio: "+r.optString("city"));
+   label("Valor: "+moeda(r.optLong("amount")));
+
+   String codigo=r.optString("payload");
+
+   if(codigo.isEmpty()){
+    label("Codigo Pix indisponivel");
+    button("Voltar",()->centralPix());
+    return;
+   }
+
+   try{
+    java.util.Map<com.google.zxing.EncodeHintType,Object> hints=
+     new java.util.HashMap<>();
+
+    hints.put(com.google.zxing.EncodeHintType.MARGIN,4);
+    hints.put(com.google.zxing.EncodeHintType.CHARACTER_SET,"UTF-8");
+
+    com.google.zxing.common.BitMatrix matriz=
+     new com.google.zxing.qrcode.QRCodeWriter().encode(
+      codigo,
+      com.google.zxing.BarcodeFormat.QR_CODE,
+      600,600,hints);
+
+    android.graphics.Bitmap imagem=
+     android.graphics.Bitmap.createBitmap(
+      600,600,android.graphics.Bitmap.Config.ARGB_8888);
+
+    for(int y=0;y<600;y++){
+     for(int x=0;x<600;x++){
+      imagem.setPixel(x,y,
+       matriz.get(x,y)?0xff000000:0xffffffff);
+     }
+    }
+
+    ImageView qr=new ImageView(this);
+    qr.setImageBitmap(imagem);
+    qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
+    panel.addView(qr,new LinearLayout.LayoutParams(-1,650));
+
+   }catch(Exception e){
+    label("Nao foi possivel gerar a imagem do QR Code");
+   }
+
+   button("Copiar Pix Copia e Cola",()->{
+    ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE))
+     .setPrimaryClip(ClipData.newPlainText("Pix",codigo));
+
+    msg("Codigo copiado. Confira o beneficiario no banco.");
+   });
+
+   label("Confira o beneficiario e o valor antes de pagar.");
+   label("A confirmacao do pagamento depende da conferencia do administrador.");
+
+   button("Voltar",()->centralPix());
+  });
+ }
+
+
+ void alterarSenha(){
+  screen();
+  label("SEGURANCA DA CONTA");
+
+  EditText atual=field("Senha atual",true);
+  EditText nova=field("Nova senha (12+ caracteres)",true);
+  EditText confirmar=field("Confirmar nova senha",true);
+
+  button("Alterar senha",()->{
+   String a=atual.getText().toString();
+   String n=nova.getText().toString();
+   String c=confirmar.getText().toString();
+
+   if(n.length()<12 || n.length()>128){
+    msg("A senha deve ter entre 12 e 128 caracteres");
+    return;
+   }
+
+   if(!n.equals(c)){
+    msg("As senhas nao conferem");
+    return;
+   }
+
+   call("/password/change",
+    obj("current_password",a,"new_password",n),
+    r->{
+     token="";
+     new AlertDialog.Builder(this)
+      .setTitle("Senha atualizada")
+      .setMessage("Entre novamente com sua nova senha.")
+      .setCancelable(false)
+      .setPositiveButton("Entrar",(x,y)->recreate())
+      .show();
+    });
+  });
+
+  button("Voltar",()->home());
+ }
+
+ void home(){
+  screen();
+  button("Alterar minha senha",()->alterarSenha());
+  button("Central Pix e QR Code",()->centralPix());
+
+  if(admin){
+   label("PAINEL ADMINISTRATIVO V2.0");
+
+   button("Dashboard financeiro",()->consulta("Dashboard","/admin/dashboard"));
+
+   button("Gerenciar clientes",()->consulta("Clientes","/admin/clients"));
+
+   button("Cadastrar cliente",()->{
+    screen();
+    EditText cpf=field("CPF",false);
+    EditText name=field("Nome completo",false);
+    EditText pw=field("Senha inicial (12+ caracteres)",true);
+
+    button("Salvar",()->call("/admin/client",
+     obj("cpf",cpf.getText().toString(),
+     "name",name.getText().toString(),
+     "password",pw.getText().toString()),
+     r->{home();msg("Cliente cadastrado");}));
+
+    button("Voltar",()->home());
+   });
+
+   button("Capital e saldo disponivel",()->consulta("Capital","/admin/finance"));
+
+   button("Emprestimos",()->consulta("Emprestimos","/loans"));
+
+   button("Parcelamentos",()->consulta("Parcelamentos","/installments"));
+
+   button("Recebimentos",()->consulta("Recebimentos","/payments"));
+
+   button("Despesas e contas a pagar",()->consulta("Despesas","/admin/expenses"));
+
+   button("Fluxo de caixa",()->consulta("Fluxo de caixa","/admin/cashflow"));
+
+   button("Contratos",()->consulta("Contratos","/contracts"));
+
+   button("Garantias",()->consulta("Garantias","/guarantees"));
+
+   button("Fiscal e relatorios",()->consulta("Relatorios gerenciais","/admin/reports"));
+
+   button("Demonstrativo mensal",()->consulta("Movimentacao mensal","/admin/charts"));
+
+   button("Configurar Pix",()->{
+    screen();
+    EditText key=field("Chave Pix",false);
+    EditText name=field("Beneficiario",false);
+
+    button("Salvar",()->call("/admin/pix",
+     obj("pix",key.getText().toString(),
+     "beneficiary",name.getText().toString()),
+     r->{home();msg("Chave atualizada");}));
+
+    button("Voltar",()->home());
+   });
+
+  }else{
+
+   label("CENTRAL DO CLIENTE V2.0");
+
+   button("Meu cadastro",()->consulta("Meu cadastro","/me"));
+
+   button("Meus emprestimos",()->consulta("Meus emprestimos","/loans"));
+
+   button("Minhas parcelas",()->consulta("Minhas parcelas","/installments"));
+
+   button("Historico de pagamentos",()->consulta("Pagamentos","/payments"));
+
+   button("Meus contratos",()->consulta("Meus contratos","/contracts"));
+
+   button("Minhas garantias",()->consulta("Minhas garantias","/guarantees"));
+
+   button("Parcelas para pagamento",()->consulta("Parcelas pendentes","/pix/payment"));
+  }
+
+  button("Chave Pix",()->call("/pix",null,r->{
+   String key=r.optString("pix");
+
+   new AlertDialog.Builder(this)
+    .setTitle("Chave Pix")
+    .setMessage(r.optString("beneficiary")+"\n"+key)
+    .setPositiveButton("Copiar",(x,y)->{
+     ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE))
+      .setPrimaryClip(ClipData.newPlainText("Pix",key));
+    })
+    .setNegativeButton("Fechar",null)
+    .show();
+  }));
+
+  button("Sair",()->call("/logout",obj(),r->{
+   token="";
+   recreate();
+  }));
+ }
+
 }
