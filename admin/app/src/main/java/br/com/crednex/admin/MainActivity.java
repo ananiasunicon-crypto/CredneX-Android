@@ -567,21 +567,59 @@ home();
   button("Voltar",()->home());
  }
 
- void home(){
+ 
+ void moduloV5(String titulo, Runnable acao){
+  LinearLayout linha = null;
+  int n = panel.getChildCount();
+
+  if(n > 0){
+   android.view.View ultimo = panel.getChildAt(n-1);
+   if(ultimo instanceof LinearLayout &&
+      "GRADE_V5".equals(ultimo.getTag())){
+    LinearLayout atual = (LinearLayout)ultimo;
+    if(atual.getChildCount()<3) linha=atual;
+   }
+  }
+
+  if(linha==null){
+   linha=new LinearLayout(this);
+   linha.setOrientation(0);
+   linha.setTag("GRADE_V5");
+   panel.addView(linha,new LinearLayout.LayoutParams(-1,-2));
+  }
+
+  android.widget.Button b=new android.widget.Button(this);
+  b.setText(titulo);
+  b.setAllCaps(false);
+  b.setTextSize(12);
+  b.setTextColor(0xffffffff);
+  b.setGravity(android.view.Gravity.CENTER);
+  b.setBackgroundTintList(null);
+  b.setBackground(estilo(0xff103d2b,0xffc4a24e,18));
+  b.setPadding(dp(4),dp(6),dp(4),dp(6));
+
+  LinearLayout.LayoutParams lp=
+   new LinearLayout.LayoutParams(0,dp(90),1);
+  lp.setMargins(dp(3),dp(4),dp(3),dp(4));
+  linha.addView(b,lp);
+  b.setOnClickListener(v->acao.run());
+ }
+
+void home(){
   screen();
   button("Alterar minha senha",()->alterarSenha());
   button("Central Pix e QR Code",()->centralPix());
 
   if(admin){
-   label("PAINEL ADMINISTRATIVO V2.0");
-   button("Graficos financeiros",()->graficosFinanceiros());
-   button("Operacoes administrativas",()->operacoes());
+   label("CREDNEX 5.0 | GESTÃO ADMINISTRATIVA");
+   moduloV5("Gráficos",()->graficosFinanceiros());
+   moduloV5("Operações",()->operacoes());
 
-   button("Dashboard financeiro",()->consulta("Dashboard","/admin/dashboard"));
+   moduloV5("Dashboard",()->consulta("Dashboard","/admin/dashboard"));
 
-   button("Gerenciar clientes",()->consulta("Clientes","/admin/clients"));
+   moduloV5("Clientes",()->consulta("Clientes","/admin/clients"));
 
-   button("Cadastrar cliente",()->{
+   moduloV5("Novo cliente",()->{
     screen();
     EditText cpf=field("CPF",false);
     EditText name=field("Nome completo",false);
@@ -596,27 +634,27 @@ home();
     button("Voltar",()->home());
    });
 
-   button("Capital e saldo disponivel",()->consulta("Capital","/admin/finance"));
+   moduloV5("Capital",()->consulta("Capital","/admin/finance"));
 
-   button("Emprestimos",()->consulta("Emprestimos","/loans"));
+   moduloV5("Empréstimos",()->consulta("Emprestimos","/loans"));
 
-   button("Parcelamentos",()->consulta("Parcelamentos","/installments"));
+   moduloV5("Parcelas",()->consulta("Parcelamentos","/installments"));
 
-   button("Recebimentos",()->consulta("Recebimentos","/payments"));
+   moduloV5("Recebimentos",()->consulta("Recebimentos","/payments"));
 
    button("Despesas e contas a pagar",()->consulta("Despesas","/admin/expenses"));
 
-   button("Fluxo de caixa",()->consulta("Fluxo de caixa","/admin/cashflow"));
+   moduloV5("Fluxo de caixa",()->consulta("Fluxo de caixa","/admin/cashflow"));
 
-   button("Contratos",()->consulta("Contratos","/contracts"));
+   moduloV5("Contratos",()->consulta("Contratos","/contracts"));
 
-   button("Garantias",()->consulta("Garantias","/guarantees"));
+   moduloV5("Garantias",()->consulta("Garantias","/guarantees"));
 
-   button("Fiscal e relatorios",()->consulta("Relatorios gerenciais","/admin/reports"));
+   moduloV5("Relatórios",()->consulta("Relatorios gerenciais","/admin/reports"));
 
-   button("Demonstrativo mensal",()->consulta("Movimentacao mensal","/admin/charts"));
+   moduloV5("Demonstrativo",()->consulta("Movimentacao mensal","/admin/charts"));
 
-   button("Configurar Pix",()->{
+   moduloV5("Configurar Pix",()->{
     screen();
     EditText key=field("Chave Pix",false);
     EditText name=field("Beneficiario",false);
